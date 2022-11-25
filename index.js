@@ -32,9 +32,25 @@ function verifyJwt(req, res, next) {
     })
 }
 
-async function run (){
-    try{
-        const usersCollection= client.db('weSell').collection('users')
+async function run() {
+    try {
+        const categoriesCollection = client.db('weSell').collection('categories');
+        const usersCollection = client.db('weSell').collection('users');
+        const productsCollection = client.db('weSell').collection('products');
+
+        app.get('/categories', async (req, res) => {
+            const query = {};
+            const categories = await categoriesCollection.find(query).toArray();
+            res.send(categories);
+        });
+
+        app.get('/categories/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { categoryId: id };
+            const products = await productsCollection.find(query).toArray();
+            res.send(products);
+        });
+        
         app.get('/jwt', async (req, res) => {
             const email = req.query.email;
             const query = {
@@ -47,7 +63,7 @@ async function run (){
             }
             res.status(403).send({ accessToken: '' })
         });
-        
+
         app.post('/users', async (req, res) => {
             const user = req.body;
             const result = await usersCollection.insertOne(user);
@@ -58,16 +74,16 @@ async function run (){
 
 
     }
-    finally{
+    finally {
 
     }
 }
 run().catch(console.dir);
 
-app.get('/',(req,res)=>{
+app.get('/', (req, res) => {
     res.send('We sell server is Running here');
 });
 
-app.listen(port, ()=>{
+app.listen(port, () => {
     console.log(`We sell server is running on port ${port}`);
 })
