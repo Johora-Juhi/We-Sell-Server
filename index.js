@@ -67,6 +67,12 @@ async function run() {
             res.send(categories);
         });
 
+        app.post('/categories', verifyJwt, verifySeller, async (req, res) => {
+            const product = req.body;
+            const result = await productsCollection.insertOne(product);
+            res.send(result);
+        });
+
         app.get('/categories/:id', async (req, res) => {
             const id = req.params.id;
             const query = { categoryId: id };
