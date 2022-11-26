@@ -39,6 +39,17 @@ async function run() {
         const productsCollection = client.db('weSell').collection('products');
         const ordersCollection = client.db('weSell').collection('orders');
 
+        const verifySeller = async (req, res, next) => {
+            const decodedEmail = req.decoded.email;
+            const query = { email: decodedEmail };
+            const user = await usersCollection.findOne(query);
+
+            if (user?.role !== 'seller') {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            next();
+        }
+
         app.get('/categories', async (req, res) => {
             const query = {};
             const categories = await categoriesCollection.find(query).toArray();
@@ -71,6 +82,14 @@ async function run() {
             res.send(result);
         });
 
+        app.get('/users/seller/:email', async (req, res) => {
+            const email = req.params.email;
+            const query = { email }
+            const user = await usersCollection.findOne(query);
+            res.send({ isSeller: user?.role === 'seller' })
+        });
+        
+
         app.post('/orders', async (req, res) => {
             const order = req.body
             console.log(order);
@@ -81,7 +100,7 @@ async function run() {
 
             const alreadyBooked = await ordersCollection.find(query).toArray();
             if (alreadyBooked.length) {
-                const message = `You already have an booked ${order.productName}`;
+                const message = `You have already booked ${order.productName}`;
                 return res.send({ acknowledged: false, message })
             }
             const result = await ordersCollection.insertOne(order);
