@@ -37,6 +37,7 @@ async function run() {
         const categoriesCollection = client.db('weSell').collection('categories');
         const usersCollection = client.db('weSell').collection('users');
         const productsCollection = client.db('weSell').collection('products');
+        const ordersCollection = client.db('weSell').collection('orders');
 
         app.get('/categories', async (req, res) => {
             const query = {};
@@ -67,6 +68,23 @@ async function run() {
         app.post('/users', async (req, res) => {
             const user = req.body;
             const result = await usersCollection.insertOne(user);
+            res.send(result);
+        });
+
+        app.post('/orders', async (req, res) => {
+            const order = req.body
+            console.log(order);
+            const query = {
+                email: order.email,
+                productName: order.productName
+            }
+
+            const alreadyBooked = await ordersCollection.find(query).toArray();
+            if (alreadyBooked.length) {
+                const message = `You already have an booked ${order.productName}`;
+                return res.send({ acknowledged: false, message })
+            }
+            const result = await ordersCollection.insertOne(order);
             res.send(result);
         });
 
