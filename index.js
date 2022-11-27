@@ -80,6 +80,13 @@ async function run() {
             res.send(products);
         });
 
+        app.get('/advertiseproducts', async (req, res) => {
+            const query = { advertise: true };
+            const products = await productsCollection.find(query).toArray();
+            res.send(products);
+        });
+     
+
         app.delete('/product/:id', verifyJwt, verifySeller, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: ObjectId(id) };
