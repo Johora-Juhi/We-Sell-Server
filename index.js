@@ -61,7 +61,7 @@ async function run() {
             next();
         }
 
-        app.get('/categories', async (req, res) => {
+        app.get('/categoriesType', async (req, res) => {
             const query = {};
             const categories = await categoriesCollection.find(query).toArray();
             res.send(categories);
@@ -111,7 +111,22 @@ async function run() {
             const query = { email }
             const user = await usersCollection.findOne(query);
             res.send({ isAdmin: user?.role === 'admin' })
-        })
+        });
+
+        app.get('/myproducts', verifyJwt,verifySeller, async (req, res) => {
+            const email = req.query.email;
+            console.log(email);
+            const decodedEmail = req.decoded.email;
+
+            if (email !== decodedEmail) {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            const query = {
+                email: email
+            }
+            const products = await productsCollection.find(query).toArray();
+            res.send(products);
+        });
 
         app.post('/orders', async (req, res) => {
             const order = req.body
