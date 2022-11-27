@@ -140,6 +140,18 @@ async function run() {
             res.send({ isAdmin: user?.role === 'admin' })
         });
 
+        app.get('/uses/buyers',verifyJwt,verifyAdmin, async (req, res) => {
+            const query = { role: 'buyer' };
+            const buyers = await usersCollection.find(query).toArray();
+            res.send(buyers);
+        });
+        
+        app.get('/uses/sellers',verifyJwt,verifyAdmin, async (req, res) => {
+            const query = { role: 'seller' };
+            const sellers = await usersCollection.find(query).toArray();
+            res.send(sellers);
+        });
+
         app.get('/myproducts', verifyJwt,verifySeller, async (req, res) => {
             const email = req.query.email;
             console.log(email);
