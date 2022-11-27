@@ -38,6 +38,7 @@ async function run() {
         const usersCollection = client.db('weSell').collection('users');
         const productsCollection = client.db('weSell').collection('products');
         const ordersCollection = client.db('weSell').collection('orders');
+        const wishlistCollection = client.db('weSell').collection('wishlist');
 
         const verifySeller = async (req, res, next) => {
             const decodedEmail = req.decoded.email;
@@ -49,6 +50,7 @@ async function run() {
             }
             next();
         }
+
 
         const verifyAdmin = async (req, res, next) => {
             const decodedEmail = req.decoded.email;
@@ -73,7 +75,7 @@ async function run() {
             res.send(result);
         });
 
-        app.get('/categories/:id', async (req, res) => {
+        app.get('/category/:id', async (req, res) => {
             const id = req.params.id;
             const query = { categoryId: id };
             const products = await productsCollection.find(query).toArray();
@@ -85,7 +87,7 @@ async function run() {
             const products = await productsCollection.find(query).toArray();
             res.send(products);
         });
-     
+
 
         app.delete('/product/:id', verifyJwt, verifySeller, async (req, res) => {
             const id = req.params.id;
@@ -140,19 +142,51 @@ async function run() {
             res.send({ isAdmin: user?.role === 'admin' })
         });
 
-        app.get('/uses/buyers',verifyJwt,verifyAdmin, async (req, res) => {
+        app.get('/users/buyers', verifyJwt, verifyAdmin, async (req, res) => {
             const query = { role: 'buyer' };
             const buyers = await usersCollection.find(query).toArray();
+            console.log(buyers);
             res.send(buyers);
         });
-        
-        app.get('/uses/sellers',verifyJwt,verifyAdmin, async (req, res) => {
+
+        app.delete('/users/buyers/:id', verifyJwt, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
+            const result = await usersCollection.deleteOne(filter);
+            res.send(result);
+        });
+
+        app.get('/users/sellers', verifyJwt, verifyAdmin, async (req, res) => {
             const query = { role: 'seller' };
             const sellers = await usersCollection.find(query).toArray();
+            console.log(sellers);
             res.send(sellers);
         });
 
-        app.get('/myproducts', verifyJwt,verifySeller, async (req, res) => {
+        app.delete('/users/sellers/:id', verifyJwt, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
+            const result = await usersCollection.deleteOne(filter);
+            res.send(result);
+        });
+
+        app.post('/users/sellers', verifyJwt, verifyAdmin, async (req, res) => {
+            const seller = req.body;
+            const id = seller._id;
+            const filterId = { _id: ObjectId(id) }
+            const updatedDoc = {
+                $set: {
+                    verified : true
+                }
+            }
+            const email = seller.email;
+            const filterEmail = { email: email }
+            const result = await usersCollection.updateOne(filterId, updatedDoc);
+            const updatedProducts = await productsCollection.updateMany(filterEmail, updatedDoc)
+            res.send(result);
+        });
+
+        app.get('/myproducts', verifyJwt, verifySeller, async (req, res) => {
             const email = req.query.email;
             console.log(email);
             const decodedEmail = req.decoded.email;
@@ -166,8 +200,36 @@ async function run() {
             const products = await productsCollection.find(query).toArray();
             res.send(products);
         });
-        
-        app.get('/advertiseproducts', verifyJwt,verifySeller, async (req, res) => {
+        app.get('/myorders', verifyJwt, async (req, res) => {
+            const email = req.query.email;
+            console.log(email);
+            const decodedEmail = req.decoded.email;
+
+            if (email !== decodedEmail) {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            const query = {
+                email: email
+            }
+            const orders = await ordersCollection.find(query).toArray();
+            res.send(orders);
+        });
+        app.get('/mywishlist', verifyJwt, async (req, res) => {
+            const email = req.query.email;
+            console.log(email);
+            const decodedEmail = req.decoded.email;
+
+            if (email !== decodedEmail) {
+                return res.status(403).send({ message: 'forbidden access' })
+            }
+            const query = {
+                email: email
+            }
+            const products = await wishlistCollection.find(query).toArray();
+            res.send(products);
+        });
+
+        app.get('/advertiseproducts', verifyJwt, verifySeller, async (req, res) => {
             const query = {
                 advertise: true
             }
@@ -185,10 +247,26 @@ async function run() {
 
             const alreadyBooked = await ordersCollection.find(query).toArray();
             if (alreadyBooked.length) {
-                const message = `You have already booked ${order.productName}`;
+                const message = `You have already booked ${order.productName}!`;
                 return res.send({ acknowledged: false, message })
             }
             const result = await ordersCollection.insertOne(order);
+            res.send(result);
+        });
+        app.post('/wishlist', async (req, res) => {
+            const order = req.body
+            console.log(order);
+            const query = {
+                email: order.email,
+                productName: order.productName
+            }
+
+            const alreadyAdded = await wishlistCollection.find(query).toArray();
+            if (alreadyAdded.length) {
+                const message = `You have already added ${order.productName} in your wislist!`;
+                return res.send({ acknowledged: false, message })
+            }
+            const result = await wishlistCollection.insertOne(order);
             res.send(result);
         });
 
