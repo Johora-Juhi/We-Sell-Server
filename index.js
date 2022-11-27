@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const port = process.env.PORT || 5000;
 const jwt = require('jsonwebtoken');
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 
 const app = express();
@@ -80,14 +80,14 @@ async function run() {
             res.send(products);
         });
 
-        app.delete('/categories/:id', verifyJwt, verifySeller, async (req, res) => {
+        app.delete('/product/:id', verifyJwt, verifySeller, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: ObjectId(id) };
-            const result = await doctorsCollection.deleteOne(filter);
+            const result = await productsCollection.deleteOne(filter);
             res.send(result);
         });
 
-        app.put('/categories/:id', verifyJwt, verifySeller, async (req, res) => {
+        app.put('/product/:id', verifyJwt, verifySeller, async (req, res) => {
             const id = req.params.id;
             const filter = { _id: ObjectId(id) }
             const options = { upsert: true };
@@ -147,6 +147,7 @@ async function run() {
             const products = await productsCollection.find(query).toArray();
             res.send(products);
         });
+        
         app.get('/advertiseproducts', verifyJwt,verifySeller, async (req, res) => {
             const query = {
                 advertise: true
