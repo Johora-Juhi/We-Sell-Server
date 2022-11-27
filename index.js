@@ -80,6 +80,26 @@ async function run() {
             res.send(products);
         });
 
+        app.delete('/categories/:id', verifyJwt, verifySeller, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
+            const result = await doctorsCollection.deleteOne(filter);
+            res.send(result);
+        });
+
+        app.put('/categories/:id', verifyJwt, verifySeller, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) }
+            const options = { upsert: true };
+            const updatedDoc = {
+                $set: {
+                    advertise: true
+                }
+            }
+            const result = await productsCollection.updateOne(filter, updatedDoc, options);
+            res.send(result);
+        });
+
         app.get('/jwt', async (req, res) => {
             const email = req.query.email;
             const query = {
@@ -123,6 +143,13 @@ async function run() {
             }
             const query = {
                 email: email
+            }
+            const products = await productsCollection.find(query).toArray();
+            res.send(products);
+        });
+        app.get('/advertiseproducts', verifyJwt,verifySeller, async (req, res) => {
+            const query = {
+                advertise: true
             }
             const products = await productsCollection.find(query).toArray();
             res.send(products);
