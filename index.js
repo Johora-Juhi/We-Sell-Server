@@ -2,8 +2,11 @@ const express = require('express');
 const cors = require('cors');
 const port = process.env.PORT || 5000;
 const jwt = require('jsonwebtoken');
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
+
+console.log(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 
@@ -39,6 +42,8 @@ async function run() {
         const productsCollection = client.db('weSell').collection('products');
         const ordersCollection = client.db('weSell').collection('orders');
         const wishlistCollection = client.db('weSell').collection('wishlist');
+        const paymentsCollection = client.db('weSell').collection('payments');
+
 
         // verify seller
         const verifySeller = async (req, res, next) => {
@@ -273,38 +278,76 @@ async function run() {
             res.send(orders);
         });
 
-        // add to wishlist 
-        app.post('/wishlist', verifyJwt, verifyBuyer, async (req, res) => {
-            const order = req.body
-            console.log(order);
-            const query = {
-                email: order.email,
-                productName: order.productName
-            }
+        // getting order for payment 
+        app.get('/myorders/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: ObjectId(id) }
+            const order = await ordersCollection.findOne(query);
+            res.send(order);
+        })
 
-            const alreadyAdded = await wishlistCollection.find(query).toArray();
-            if (alreadyAdded.length) {
-                const message = `You have already added ${order.productName} in your wislist!`;
-                return res.send({ acknowledged: false, message })
+        // create payment intent 
+        app.post("/create-payment-intent", async (req, res) => {
+            const order = req.body;
+            const price = order.price;
+            const amount = price * 100;
+
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: "usd",
+                automatic_payment_methods: {
+                    enabled: true,
+                },
+            });
+
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
+        });
+
+        // update payment info 
+        app.post('/payments', async (req, res) => {
+            const payment = req.body;
+            const result = await paymentsCollection.insertOne(payment);
+            const id = payment.orderId
+            const filter = { _id: ObjectId(id) }
+            const updatedDoc = {
+                $set: {
+                    paid: true,
+                    transactionId: payment.transactionId
+                }
             }
-            const result = await wishlistCollection.insertOne(order);
+            const UpdatedResult = await bookingsCollection.updateOne(filter, updatedDoc);
+            res.send(result)
+        })
+
+        // report product 
+        app.put('/productReport/:id', verifyJwt, verifyBuyer, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) }
+            const options = { upsert: true };
+            const updatedDoc = {
+                $set: {
+                    report: true
+                }
+            }
+            const result = await productsCollection.updateOne(filter, updatedDoc, options);
             res.send(result);
         });
 
-        // getting the wishlistCollection
-        app.get('/mywishlist', verifyJwt, verifyBuyer, async (req, res) => {
-            const email = req.query.email;
-            console.log(email);
-            const decodedEmail = req.decoded.email;
-
-            if (email !== decodedEmail) {
-                return res.status(403).send({ message: 'forbidden access' })
-            }
-            const query = {
-                email: email
-            }
-            const products = await wishlistCollection.find(query).toArray();
+        // show reported items 
+        app.get('/showReports', verifyJwt, verifyAdmin, async (req, res) => {
+            const query = { report: true };
+            const products = await productsCollection.find(query).toArray();
             res.send(products);
+        });
+
+        // delete reported items
+        app.delete('/reportedproduct/:id', verifyJwt, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: ObjectId(id) };
+            const result = await productsCollection.deleteOne(filter);
+            res.send(result);
         });
 
     }
